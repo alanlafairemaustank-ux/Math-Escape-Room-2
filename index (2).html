@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CIPHER VAULT — Math Escape Room</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050b0e;
+    --panel: #0a1520;
+    --border: #1a3a4a;
+    --accent: #00e5ff;
+    --accent2: #ff6b35;
+    --accent3: #39ff14;
+    --text: #c8dde8;
+    --dim: #4a6a7a;
+    --success: #39ff14;
+    --error: #ff2d55;
+    --warning: #ffd700;
+    --glow: 0 0 20px rgba(0,229,255,0.4);
+    --glow2: 0 0 20px rgba(255,107,53,0.4);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: crosshair;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.15) 2px,
+      rgba(0,0,0,0.15) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* Grid background */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ============ INTRO SCREEN ============ */
+  #intro-screen {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    background: var(--bg);
+    padding: 2rem;
+  }
+
+  .vault-logo {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    font-weight: 900;
+    color: var(--accent);
+    text-shadow: 0 0 40px rgba(0,229,255,0.8), 0 0 80px rgba(0,229,255,0.3);
+    letter-spacing: 0.15em;
+    text-align: center;
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  .vault-sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: clamp(0.8rem, 2vw, 1rem);
+    color: var(--accent2);
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    margin-top: 0.5rem;
+    text-align: center;
+  }
+
+  .intro-divider {
+    width: 300px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    margin: 2rem auto;
+  }
+
+  .intro-text {
+    max-width: 600px;
+    text-align: center;
+    line-height: 1.8;
+    color: var(--text);
+    font-size: 0.9rem;
+    margin-bottom: 2rem;
+  }
+
+  .intro-text span {
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .briefing-box {
+    border: 1px solid var(--border);
+    background: rgba(0,229,255,0.03);
+    padding: 1.5rem 2rem;
+    max-width: 600px;
+    width: 100%;
+    margin-bottom: 2rem;
+    position: relative;
+  }
+
+  .briefing-box::before {
+    content: 'MISSION BRIEF';
+    position: absolute;
+    top: -0.7rem;
+    left: 1rem;
+    background: var(--bg);
+    padding: 0 0.5rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--accent2);
+    letter-spacing: 0.2em;
+  }
+
+  .briefing-list {
+    list-style: none;
+    font-size: 0.85rem;
+    line-height: 2;
+  }
+
+  .briefing-list li::before {
+    content: '▸ ';
+    color: var(--accent);
+  }
+
+  .start-btn {
+    font-family: 'Orbitron', monospace;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: var(--bg);
+    background: var(--accent);
+    border: none;
+    padding: 1rem 3rem;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s;
+    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+  }
+
+  .start-btn:hover {
+    background: #fff;
+    box-shadow: var(--glow);
+    transform: scale(1.05);
+  }
+
+  .start-btn:active { transform: scale(0.98); }
+
+  /* ============ GAME CONTAINER ============ */
+  #game-container {
+    display: none;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ============ HEADER ============ */
+  .game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1.25rem;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .header-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 1rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+  }
+
+  .timer-display {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1.4rem;
+    color: var(--warning);
+    text-shadow: 0 0 10px rgba(255,215,0,0.5);
+  }
+
+  .timer-display.urgent {
+    color: var(--error);
+    text-shadow: 0 0 10px rgba(255,45,85,0.7);
+    animation: blink 0.5s step-end infinite;
+  }
+
+  .progress-info {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--dim);
+  }
+
+  .progress-info span { color: var(--accent3); }
+
+  /* Progress bar */
+  .progress-bar-wrap {
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .progress-bar-track {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+    transition: width 0.5s ease;
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  .progress-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--dim);
+    white-space: nowrap;
+  }
+
+  /* ============ PUZZLE CARD ============ */
+  .puzzle-card {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+    animation: slide-in 0.4s ease;
+  }
+
+  .puzzle-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: var(--accent);
+    box-shadow: var(--glow);
+  }
+
+  .puzzle-card.engineering::before {
+    background: var(--accent2);
+    box-shadow: var(--glow2);
+  }
+
+  .puzzle-number {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    color: var(--dim);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .puzzle-tag {
+    padding: 0.15rem 0.6rem;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    border: 1px solid currentColor;
+  }
+
+  .tag-word { color: var(--accent); border-color: var(--accent); }
+  .tag-realworld { color: var(--accent3); border-color: var(--accent3); }
+  .tag-engineering { color: var(--accent2); border-color: var(--accent2); }
+  .tag-bonus { color: var(--warning); border-color: var(--warning); }
+
+  .puzzle-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 1.25rem;
+  }
+
+  .puzzle-scenario {
+    background: rgba(0,0,0,0.3);
+    border-left: 2px solid var(--dim);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.25rem;
+    font-size: 0.9rem;
+    line-height: 1.8;
+    color: var(--text);
+    font-style: italic;
+  }
+
+  .puzzle-question {
+    font-size: 0.95rem;
+    line-height: 1.7;
+    margin-bottom: 1.5rem;
+    color: #e8f4f8;
+  }
+
+  .puzzle-question strong {
+    color: var(--accent);
+    font-style: normal;
+  }
+
+  .hint-section {
+    margin-bottom: 1.25rem;
+  }
+
+  .hint-toggle {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--dim);
+    background: none;
+    border: 1px solid var(--border);
+    padding: 0.4rem 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.1em;
+  }
+
+  .hint-toggle:hover { color: var(--accent); border-color: var(--accent); }
+
+  .hint-text {
+    display: none;
+    margin-top: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: rgba(255,107,53,0.07);
+    border: 1px solid rgba(255,107,53,0.2);
+    font-size: 0.85rem;
+    color: var(--accent2);
+    line-height: 1.6;
+  }
+
+  .hint-text.visible { display: block; }
+
+  /* Answer input area */
+  .answer-area {
+    display: flex;
+    gap: 0.75rem;
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .answer-input-wrap {
+    flex: 1;
+    min-width: 200px;
+    position: relative;
+  }
+
+  .answer-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--dim);
+    letter-spacing: 0.2em;
+    display: block;
+    margin-bottom: 0.4rem;
+  }
+
+  .answer-input {
+    width: 100%;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--border);
+    color: var(--accent3);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1.1rem;
+    padding: 0.75rem 1rem;
+    outline: none;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+  }
+
+  .answer-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 12px rgba(0,229,255,0.2);
+  }
+
+  .answer-input.correct {
+    border-color: var(--success);
+    color: var(--success);
+    box-shadow: 0 0 12px rgba(57,255,20,0.3);
+  }
+
+  .answer-input.incorrect {
+    border-color: var(--error);
+    color: var(--error);
+    animation: shake 0.3s ease;
+  }
+
+  .submit-btn {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--bg);
+    background: var(--accent);
+    border: none;
+    padding: 0 1.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    align-self: flex-end;
+    height: 3rem;
+    white-space: nowrap;
+  }
+
+  .submit-btn:hover { background: #fff; box-shadow: var(--glow); }
+  .submit-btn:active { transform: scale(0.97); }
+  .submit-btn:disabled {
+    background: var(--border);
+    color: var(--dim);
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .feedback-msg {
+    margin-top: 0.75rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85rem;
+    min-height: 1.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .feedback-msg.correct { color: var(--success); }
+  .feedback-msg.incorrect { color: var(--error); }
+
+  .attempts-left {
+    font-size: 0.75rem;
+    color: var(--dim);
+    margin-top: 0.4rem;
+  }
+
+  /* Solved overlay */
+  .solved-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(5,11,14,0.92);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 10;
+  }
+
+  .solved-overlay.show { display: flex; }
+
+  .solved-check {
+    font-size: 2.5rem;
+    color: var(--success);
+    text-shadow: 0 0 20px var(--success);
+    animation: pop 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+  }
+
+  .solved-text {
+    font-family: 'Orbitron', monospace;
+    color: var(--success);
+    font-size: 1rem;
+    letter-spacing: 0.2em;
+  }
+
+  .solved-code {
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--accent);
+    font-size: 0.85rem;
+  }
+
+  /* Skip engineering */
+  .skip-btn {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--dim);
+    background: none;
+    border: 1px dashed var(--border);
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    margin-top: 1rem;
+    transition: all 0.2s;
+    display: block;
+    letter-spacing: 0.1em;
+  }
+
+  .skip-btn:hover { color: var(--accent2); border-color: var(--accent2); }
+
+  /* Navigation */
+  .nav-area {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .nav-btn {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--dim);
+    transition: all 0.2s;
+  }
+
+  .nav-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .nav-btn.primary {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+  }
+
+  .nav-btn.primary:hover {
+    background: #fff;
+    color: var(--bg);
+    box-shadow: var(--glow);
+  }
+
+  .puzzle-dots {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .dot {
+    width: 10px; height: 10px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .dot.solved { background: var(--success); border-color: var(--success); box-shadow: 0 0 6px var(--success); }
+  .dot.current { border-color: var(--accent); background: rgba(0,229,255,0.2); }
+  .dot.skipped { background: var(--warning); border-color: var(--warning); }
+
+  /* ============ VICTORY SCREEN ============ */
+  #victory-screen {
+    display: none;
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 3rem 2rem;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+    animation: slide-in 0.5s ease;
+  }
+
+  .victory-title {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 900;
+    color: var(--success);
+    text-shadow: 0 0 40px rgba(57,255,20,0.7);
+    margin-bottom: 0.5rem;
+    animation: pulse-glow-green 1.5s ease-in-out infinite;
+  }
+
+  .victory-sub {
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--accent);
+    letter-spacing: 0.3em;
+    font-size: 0.9rem;
+    margin-bottom: 2rem;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .stat-box {
+    border: 1px solid var(--border);
+    padding: 1.25rem;
+    background: var(--panel);
+    position: relative;
+  }
+
+  .stat-value {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.8rem;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .stat-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--dim);
+    letter-spacing: 0.2em;
+    margin-top: 0.25rem;
+  }
+
+  .cipher-revealed {
+    border: 1px solid var(--accent);
+    background: rgba(0,229,255,0.05);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .cipher-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--dim);
+    letter-spacing: 0.3em;
+    margin-bottom: 0.5rem;
+  }
+
+  .cipher-code {
+    font-family: 'Orbitron', monospace;
+    font-size: 2rem;
+    color: var(--success);
+    letter-spacing: 0.3em;
+    text-shadow: 0 0 20px rgba(57,255,20,0.5);
+  }
+
+  .restart-btn {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    padding: 1rem 2.5rem;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .restart-btn:hover {
+    background: var(--accent);
+    color: var(--bg);
+    box-shadow: var(--glow);
+  }
+
+  /* ============ ANIMATIONS ============ */
+  @keyframes pulse-glow {
+    0%, 100% { text-shadow: 0 0 40px rgba(0,229,255,0.8), 0 0 80px rgba(0,229,255,0.3); }
+    50% { text-shadow: 0 0 60px rgba(0,229,255,1), 0 0 120px rgba(0,229,255,0.5); }
+  }
+
+  @keyframes pulse-glow-green {
+    0%, 100% { text-shadow: 0 0 30px rgba(57,255,20,0.6); }
+    50% { text-shadow: 0 0 60px rgba(57,255,20,1); }
+  }
+
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+
+  @keyframes shake {
+    10%, 90% { transform: translateX(-1px); }
+    20%, 80% { transform: translateX(2px); }
+    30%, 50%, 70% { transform: translateX(-3px); }
+    40%, 60% { transform: translateX(3px); }
+  }
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pop {
+    0% { transform: scale(0); }
+    60% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes flicker {
+    0%, 95%, 100% { opacity: 1; }
+    96% { opacity: 0.4; }
+    98% { opacity: 0.8; }
+  }
+
+  .flicker { animation: flicker 6s infinite; }
+
+  /* math formula styling */
+  .formula {
+    display: inline-block;
+    background: rgba(0,229,255,0.06);
+    border: 1px solid rgba(0,229,255,0.15);
+    padding: 0.2rem 0.5rem;
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--accent);
+    font-size: 0.9em;
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.85rem;
+  }
+
+  .data-table th {
+    background: rgba(0,229,255,0.08);
+    color: var(--accent);
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    font-family: 'Share Tech Mono', monospace;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    border: 1px solid var(--border);
+  }
+
+  .data-table td {
+    padding: 0.4rem 0.75rem;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  .data-table tr:nth-child(even) td { background: rgba(0,0,0,0.2); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--dim); }
+</style>
+</head>
+<body>
+
+<!-- ======== INTRO SCREEN ======== -->
+<div id="intro-screen">
+  <div class="vault-logo flicker">CIPHER VAULT</div>
+  <div class="vault-sub">[ Mathematical Escape Protocol ]</div>
+  <div class="intro-divider"></div>
+  <p class="intro-text">
+    You've infiltrated the <span>NEXUS Research Facility</span>. The vault is locked behind 7 mathematical puzzles. Solve them to extract the final cipher and escape. The facility self-destructs in <span>35 minutes</span>.
+  </p>
+  <div class="briefing-box">
+    <ul class="briefing-list">
+      <li>7 puzzles across 4 difficulty tiers</li>
+      <li>Word problems, real-world applications & engineering</li>
+      <li>Hints available (may affect score)</li>
+      <li>3 attempts per puzzle before answer is revealed</li>
+      <li>Final engineering challenge is optional (bonus XP)</li>
+      <li>Estimated time: 25–35 minutes</li>
+    </ul>
+  </div>
+  <button class="start-btn" onclick="startGame()">INITIATE PROTOCOL</button>
+</div>
+
+<!-- ======== GAME CONTAINER ======== -->
+<div id="game-container">
+  <div class="game-header">
+    <div class="header-title">// CIPHER VAULT</div>
+    <div class="timer-display" id="timer-display">35:00</div>
+    <div class="progress-info">PUZZLES: <span id="progress-count">0/6</span></div>
+  </div>
+
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" id="progress-bar" style="width:0%"></div>
+    </div>
+    <div class="progress-label" id="progress-label">SECTOR 1 / 7</div>
+  </div>
+
+  <div id="puzzle-display"></div>
+
+  <div class="nav-area">
+    <button class="nav-btn" id="prev-btn" onclick="navigate(-1)" disabled>◀ PREV</button>
+    <div class="puzzle-dots" id="puzzle-dots"></div>
+    <button class="nav-btn primary" id="next-btn" onclick="navigate(1)">NEXT ▶</button>
+  </div>
+</div>
+
+<!-- ======== VICTORY SCREEN ======== -->
+<div id="victory-screen">
+  <div class="victory-title">VAULT OPEN</div>
+  <div class="victory-sub">[ ESCAPE SUCCESSFUL ]</div>
+
+  <div class="stats-grid">
+    <div class="stat-box">
+      <div class="stat-value" id="stat-time">—</div>
+      <div class="stat-label">TIME REMAINING</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="stat-solved">—</div>
+      <div class="stat-label">PUZZLES SOLVED</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="stat-hints">—</div>
+      <div class="stat-label">HINTS USED</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="stat-score">—</div>
+      <div class="stat-label">FINAL SCORE</div>
+    </div>
+  </div>
+
+  <div class="cipher-revealed">
+    <div class="cipher-label">VAULT CIPHER EXTRACTED</div>
+    <div class="cipher-code" id="final-cipher">NEXUS-7742</div>
+  </div>
+
+  <button class="restart-btn" onclick="restartGame()">RUN PROTOCOL AGAIN</button>
+</div>
+
+<script>
+// ============================================================
+// PUZZLE DATA
+// ============================================================
+const PUZZLES = [
+  {
+    id: 1,
+    type: 'word',
+    tag: 'tag-word',
+    tagLabel: 'WORD PROBLEM',
+    sector: 'SECTOR 1',
+    title: 'The Train Schedule',
+    scenario: `Agent, the vault timetable is encoded in a train schedule. Two trains depart from the same station. Train A leaves at 8:00 AM heading east at 60 mph. Train B leaves at 9:30 AM heading east at 90 mph.`,
+    question: `<strong>How many miles from the station will Train B catch up to Train A?</strong><br><br>Enter your answer in miles (whole number).`,
+    hint: `First find how far Train A travels in 1.5 hours (the head start). Then set up an equation: 60t + 90 = 90t, where t is hours after Train B departs. Solve for t, then multiply by 90.`,
+    answer: 270,
+    tolerance: 0,
+    unit: 'miles',
+    explanation: `Train A has a 1.5-hour head start: 60 × 1.5 = 90 miles ahead. Train B gains 30 mph on Train A. Time to catch up: 90 ÷ 30 = 3 hours. Distance: 90 × 3 = <strong>270 miles</strong>.`
+  },
+  {
+    id: 2,
+    type: 'realworld',
+    tag: 'tag-realworld',
+    tagLabel: 'REAL-WORLD',
+    sector: 'SECTOR 2',
+    title: 'The Pharmacy Dosage',
+    scenario: `The facility's medical bay has a locked cabinet. The code is hidden in a drug dosage calculation. A patient weighs 176 lbs and requires a medication at 5 mg per kilogram of body weight. The medication comes in 250 mg tablets.`,
+    question: `<strong>How many tablets should the patient receive?</strong><br><br>Round to the nearest whole tablet. (1 kg = 2.2 lbs)`,
+    hint: `Step 1: Convert 176 lbs to kg by dividing by 2.2. Step 2: Multiply kg by 5 mg/kg to get total mg needed. Step 3: Divide by 250 mg/tablet and round.`,
+    answer: 2,
+    tolerance: 0,
+    unit: 'tablets',
+    explanation: `176 ÷ 2.2 = 80 kg. Dose = 80 × 5 = 400 mg. Tablets = 400 ÷ 250 = 1.6 → <strong>2 tablets</strong> (rounded up for safety).`
+  },
+  {
+    id: 3,
+    type: 'word',
+    tag: 'tag-word',
+    tagLabel: 'WORD PROBLEM',
+    sector: 'SECTOR 3',
+    title: 'The Investment Cipher',
+    scenario: `The vault password rotates based on compound interest calculations. An agent invested $4,500 in a secure account at an annual interest rate of 6%, compounded quarterly, for 3 years.`,
+    question: `<strong>What is the final amount in the account after 3 years?</strong><br><br>Use the formula: A = P(1 + r/n)^(nt). Round to the nearest dollar.`,
+    hint: `P = 4500, r = 0.06, n = 4 (quarterly), t = 3. So A = 4500 × (1 + 0.06/4)^(4×3) = 4500 × (1.015)^12`,
+    answer: 5373,
+    tolerance: 2,
+    unit: 'dollars',
+    explanation: `A = 4500 × (1.015)^12 = 4500 × 1.19562 ≈ <strong>$5,373</strong>. (Answers between $5,371–$5,375 accepted.)`
+  },
+  {
+    id: 4,
+    type: 'realworld',
+    tag: 'tag-realworld',
+    tagLabel: 'REAL-WORLD',
+    sector: 'SECTOR 4',
+    title: 'The Fuel Calculation',
+    scenario: `The extraction vehicle must make it to the rendezvous point. Your SUV gets 24 miles per gallon in city driving and 32 miles per gallon on the highway. You drive 60 miles in the city and 180 miles on the highway.`,
+    question: `<strong>How many total gallons of fuel do you need for the entire trip?</strong><br><br>Round to 1 decimal place.`,
+    hint: `Calculate city gallons: 60 ÷ 24. Calculate highway gallons: 180 ÷ 32. Add them together.`,
+    answer: 8.1,
+    tolerance: 0.1,
+    unit: 'gallons',
+    explanation: `City: 60 ÷ 24 = 2.5 gal. Highway: 180 ÷ 32 = 5.625 gal. Total ≈ <strong>8.1 gallons</strong>.`
+  },
+  {
+    id: 5,
+    type: 'word',
+    tag: 'tag-word',
+    tagLabel: 'WORD PROBLEM',
+    sector: 'SECTOR 5',
+    title: 'The Shadow Geometry',
+    scenario: `A guard tower casts a shadow at a critical surveillance angle. A vertical antenna 40 feet tall casts a shadow 30 feet long. At the same time, a nearby building casts a shadow 120 feet long.`,
+    question: `<strong>How tall is the building in feet?</strong><br><br>Use similar triangles. Enter a whole number.`,
+    hint: `Set up a proportion: (antenna height) / (antenna shadow) = (building height) / (building shadow). So 40/30 = x/120. Solve for x.`,
+    answer: 160,
+    tolerance: 0,
+    unit: 'feet',
+    explanation: `40/30 = x/120 → x = (40 × 120) / 30 = 4800 / 30 = <strong>160 feet</strong>.`
+  },
+  {
+    id: 6,
+    type: 'realworld',
+    tag: 'tag-realworld',
+    tagLabel: 'REAL-WORLD',
+    sector: 'SECTOR 6',
+    title: 'The Network Breach',
+    scenario: `The facility's firewall is a probability matrix. A cybersecurity system has three independent firewalls. Each firewall successfully blocks an intrusion with a probability of 0.85. An intrusion is only stopped if ALL THREE firewalls block it.`,
+    question: `<strong>What is the probability (as a percentage) that ALL THREE firewalls successfully block an intrusion?</strong><br><br>Round to 2 decimal places (e.g., enter 61.41 for 61.41%).`,
+    hint: `Since the firewalls are independent, multiply the probabilities: 0.85 × 0.85 × 0.85. Then convert to a percentage.`,
+    answer: 61.41,
+    tolerance: 0.05,
+    unit: '%',
+    explanation: `0.85³ = 0.614125 ≈ <strong>61.41%</strong>.`
+  },
+  {
+    id: 7,
+    type: 'engineering',
+    tag: 'tag-engineering',
+    tagLabel: 'ENGINEERING BONUS',
+    bonusTag: 'SKIPPABLE',
+    sector: 'SECTOR 7 — BONUS',
+    title: 'The Structural Load',
+    scenario: `The vault door is held by a steel beam under load. A simply supported steel beam (I-beam) has a span of L = 6 meters and carries a uniformly distributed load of w = 12 kN/m. The beam has a moment of inertia I = 80 × 10⁻⁶ m⁴ and Young's Modulus E = 200 GPa.`,
+    question: `<strong>Part A:</strong> What is the maximum bending moment M<sub>max</sub> in kN·m?<br><br>Use: <span class="formula">M_max = wL² / 8</span><br><br>Enter your answer for M_max (in kN·m, whole number).`,
+    hint: `Plug directly into the formula: w = 12 kN/m, L = 6 m. M_max = (12 × 6²) / 8 = (12 × 36) / 8 = 432 / 8.`,
+    answer: 54,
+    tolerance: 0,
+    unit: 'kN·m',
+    explanation: `M_max = (12 × 36) / 8 = 432 / 8 = <strong>54 kN·m</strong>. This is a standard beam-bending result in structural engineering.`
+  }
+];
+
+// ============================================================
+// GAME STATE
+// ============================================================
+let state = {
+  currentPuzzle: 0,
+  puzzleStates: [],
+  startTime: null,
+  timerInterval: null,
+  secondsRemaining: 35 * 60,
+  hintsUsed: 0,
+  totalAttempts: 0
+};
+
+function initState() {
+  state.puzzleStates = PUZZLES.map(() => ({
+    solved: false,
+    skipped: false,
+    attempts: 0,
+    hintShown: false,
+    revealed: false,
+    inputValue: ''
+  }));
+}
+
+// ============================================================
+// GAME LIFECYCLE
+// ============================================================
+function startGame() {
+  document.getElementById('intro-screen').style.display = 'none';
+  document.getElementById('game-container').style.display = 'block';
+  initState();
+  state.startTime = Date.now();
+  startTimer();
+  renderPuzzle();
+  renderDots();
+}
+
+function restartGame() {
+  clearInterval(state.timerInterval);
+  state = {
+    currentPuzzle: 0,
+    puzzleStates: [],
+    startTime: null,
+    timerInterval: null,
+    secondsRemaining: 35 * 60,
+    hintsUsed: 0,
+    totalAttempts: 0
+  };
+  document.getElementById('victory-screen').style.display = 'none';
+  document.getElementById('game-container').style.display = 'block';
+  initState();
+  state.startTime = Date.now();
+  startTimer();
+  renderPuzzle();
+  renderDots();
+}
+
+// ============================================================
+// TIMER
+// ============================================================
+function startTimer() {
+  state.timerInterval = setInterval(() => {
+    state.secondsRemaining--;
+    updateTimerDisplay();
+    if (state.secondsRemaining <= 0) {
+      clearInterval(state.timerInterval);
+      endGame(false);
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const el = document.getElementById('timer-display');
+  const m = Math.floor(state.secondsRemaining / 60);
+  const s = state.secondsRemaining % 60;
+  el.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  el.classList.toggle('urgent', state.secondsRemaining <= 120);
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function renderPuzzle() {
+  const idx = state.currentPuzzle;
+  const puzzle = PUZZLES[idx];
+  const ps = state.puzzleStates[idx];
+  const container = document.getElementById('puzzle-display');
+
+  // Update nav
+  document.getElementById('prev-btn').disabled = idx === 0;
+  const nextBtn = document.getElementById('next-btn');
+  const isLast = idx === PUZZLES.length - 1;
+  nextBtn.textContent = isLast ? 'FINISH ▶' : 'NEXT ▶';
+
+  // Update progress
+  const solved = state.puzzleStates.filter(p => p.solved).length;
+  const total = PUZZLES.length - 1; // not counting bonus
+  document.getElementById('progress-count').textContent = `${solved}/${total}`;
+  document.getElementById('progress-bar').style.width = `${(solved / total) * 100}%`;
+  document.getElementById('progress-label').textContent = `SECTOR ${idx + 1} / ${PUZZLES.length}`;
+
+  const inputVal = ps.inputValue || '';
+  const isDisabled = ps.solved || ps.skipped || ps.revealed;
+  const inputClass = ps.solved ? 'correct' : (ps.revealed ? 'incorrect' : '');
+
+  let feedbackHtml = '';
+  if (ps.solved) {
+    feedbackHtml = `<div class="feedback-msg correct">✓ CORRECT — ${puzzle.explanation}</div>`;
+  } else if (ps.revealed) {
+    feedbackHtml = `<div class="feedback-msg incorrect">✗ Answer revealed: ${puzzle.explanation}</div>`;
+  } else if (ps.skipped) {
+    feedbackHtml = `<div class="feedback-msg" style="color:var(--warning)">⟶ PUZZLE SKIPPED</div>`;
+  }
+
+  const attemptsLeft = 3 - ps.attempts;
+  let attemptsHtml = '';
+  if (!isDisabled && ps.attempts > 0) {
+    attemptsHtml = `<div class="attempts-left">Attempts remaining: ${attemptsLeft}</div>`;
+  }
+
+  const skipHtml = puzzle.type === 'engineering' && !ps.solved && !ps.revealed
+    ? `<button class="skip-btn" onclick="skipEngineering()">⟶ SKIP BONUS PUZZLE (no penalty)</button>` : '';
+
+  const solvedOverlay = ps.solved
+    ? `<div class="solved-overlay show"><div class="solved-check">✓</div><div class="solved-text">DECRYPTED</div><div class="solved-code">SECTOR ${idx + 1} UNLOCKED</div></div>` : '';
+
+  container.innerHTML = `
+    <div class="puzzle-card ${puzzle.type === 'engineering' ? 'engineering' : ''}" style="position:relative">
+      ${solvedOverlay}
+      <div class="puzzle-number">
+        ${puzzle.sector}
+        <span class="puzzle-tag ${puzzle.tag}">${puzzle.tagLabel}</span>
+        ${puzzle.bonusTag ? `<span class="puzzle-tag tag-bonus">${puzzle.bonusTag}</span>` : ''}
+      </div>
+      <div class="puzzle-title">${puzzle.title}</div>
+      <div class="puzzle-scenario">${puzzle.scenario}</div>
+      <div class="puzzle-question">${puzzle.question}</div>
+
+      <div class="hint-section">
+        <button class="hint-toggle" onclick="toggleHint(${idx})">${ps.hintShown ? '▴ HIDE HINT' : '▾ REQUEST HINT'}</button>
+        <div class="hint-text ${ps.hintShown ? 'visible' : ''}" id="hint-${idx}">💡 ${puzzle.hint}</div>
+      </div>
+
+      <div class="answer-area">
+        <div class="answer-input-wrap">
+          <label class="answer-label">ENTER ANSWER ${puzzle.unit ? `[${puzzle.unit}]` : ''}</label>
+          <input
+            class="answer-input ${inputClass}"
+            type="text"
+            id="answer-input-${idx}"
+            value="${inputVal}"
+            placeholder="Type your answer here..."
+            ${isDisabled ? 'disabled' : ''}
+            onkeydown="if(event.key==='Enter') checkAnswer(${idx})"
+            oninput="saveInput(${idx}, this.value)"
+          />
+        </div>
+        <button class="submit-btn" onclick="checkAnswer(${idx})" ${isDisabled ? 'disabled' : ''}>SUBMIT</button>
+      </div>
+      ${attemptsHtml}
+      ${feedbackHtml}
+      ${skipHtml}
+    </div>
+  `;
+}
+
+function renderDots() {
+  const container = document.getElementById('puzzle-dots');
+  container.innerHTML = PUZZLES.map((p, i) => {
+    const ps = state.puzzleStates[i];
+    let cls = '';
+    if (ps.solved) cls = 'solved';
+    else if (ps.skipped) cls = 'skipped';
+    else if (i === state.currentPuzzle) cls = 'current';
+    return `<div class="dot ${cls}" title="${p.title}" onclick="goToPuzzle(${i})"></div>`;
+  }).join('');
+}
+
+// ============================================================
+// PUZZLE LOGIC
+// ============================================================
+function toggleHint(idx) {
+  const ps = state.puzzleStates[idx];
+  if (!ps.hintShown) {
+    ps.hintShown = true;
+    state.hintsUsed++;
+  } else {
+    ps.hintShown = false;
+  }
+  renderPuzzle();
+}
+
+function saveInput(idx, val) {
+  state.puzzleStates[idx].inputValue = val;
+}
+
+function checkAnswer(idx) {
+  const puzzle = PUZZLES[idx];
+  const ps = state.puzzleStates[idx];
+  if (ps.solved || ps.revealed || ps.skipped) return;
+
+  const inputEl = document.getElementById(`answer-input-${idx}`);
+  const raw = inputEl.value.trim();
+  const userVal = parseFloat(raw);
+
+  if (isNaN(userVal)) {
+    inputEl.classList.add('incorrect');
+    setTimeout(() => inputEl.classList.remove('incorrect'), 600);
+    return;
+  }
+
+  ps.attempts++;
+  state.totalAttempts++;
+  const correct = Math.abs(userVal - puzzle.answer) <= puzzle.tolerance;
+
+  if (correct) {
+    ps.solved = true;
+    ps.inputValue = raw;
+    checkVictory();
+  } else {
+    ps.inputValue = raw;
+    if (ps.attempts >= 3) {
+      ps.revealed = true;
+    }
+  }
+
+  renderPuzzle();
+  renderDots();
+}
+
+function skipEngineering() {
+  const idx = state.currentPuzzle;
+  state.puzzleStates[idx].skipped = true;
+  renderPuzzle();
+  renderDots();
+}
+
+function checkVictory() {
+  // Victory if all non-bonus puzzles solved (first 6)
+  const nonBonus = state.puzzleStates.slice(0, 6);
+  if (nonBonus.every(ps => ps.solved || ps.revealed || ps.skipped)) {
+    // Check if at least 4 solved
+    const solvedCount = nonBonus.filter(ps => ps.solved).length;
+    if (solvedCount >= 4) {
+      setTimeout(() => endGame(true), 800);
+    }
+  }
+  // Also allow complete if all 7 done (including skipped bonus)
+  const all = state.puzzleStates;
+  if (all.every(ps => ps.solved || ps.revealed || ps.skipped)) {
+    setTimeout(() => endGame(true), 800);
+  }
+}
+
+function endGame(success) {
+  clearInterval(state.timerInterval);
+  document.getElementById('game-container').style.display = 'none';
+
+  if (success) {
+    const solved = state.puzzleStates.filter(ps => ps.solved).length;
+    const bonusSolved = state.puzzleStates[6].solved;
+    const timeLeft = state.secondsRemaining;
+    const m = Math.floor(timeLeft / 60);
+    const s = timeLeft % 60;
+    const score = Math.max(0,
+      solved * 1000 +
+      (bonusSolved ? 2000 : 0) -
+      (state.hintsUsed * 100) -
+      Math.floor((35 * 60 - timeLeft) / 60) * 20
+    );
+
+    document.getElementById('stat-time').textContent = `${m}:${String(s).padStart(2,'0')}`;
+    document.getElementById('stat-solved').textContent = `${solved}/7`;
+    document.getElementById('stat-hints').textContent = state.hintsUsed;
+    document.getElementById('stat-score').textContent = score;
+
+    // Build cipher from answers
+    const codeNums = state.puzzleStates.slice(0,6)
+      .map((ps, i) => ps.solved ? String(PUZZLES[i].answer).slice(-1) : '0')
+      .join('');
+    document.getElementById('final-cipher').textContent = `NEXUS-${codeNums}`;
+
+    document.getElementById('victory-screen').style.display = 'block';
+  }
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function navigate(dir) {
+  const next = state.currentPuzzle + dir;
+  if (next < 0 || next >= PUZZLES.length) {
+    if (dir === 1 && state.currentPuzzle === PUZZLES.length - 1) {
+      // Final next = finish attempt
+      const nonBonus = state.puzzleStates.slice(0, 6);
+      const solved = nonBonus.filter(ps => ps.solved).length;
+      if (solved >= 4 || nonBonus.every(ps => ps.solved || ps.revealed || ps.skipped)) {
+        endGame(true);
+      } else {
+        alert('You need to solve at least 4 puzzles before finishing!');
+      }
+    }
+    return;
+  }
+  state.currentPuzzle = next;
+  renderPuzzle();
+  renderDots();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function goToPuzzle(idx) {
+  state.currentPuzzle = idx;
+  renderPuzzle();
+  renderDots();
+}
+</script>
+</body>
+</html>
