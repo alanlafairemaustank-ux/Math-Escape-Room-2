@@ -1089,11 +1089,6 @@ function renderPuzzle() {
       <div class="puzzle-scenario">${puzzle.scenario}</div>
       <div class="puzzle-question">${puzzle.question}</div>
 
-      <div class="hint-section">
-        <button class="hint-toggle" onclick="toggleHint(${idx})">${ps.hintShown ? '▴ HIDE HINT' : '▾ REQUEST HINT'}</button>
-        <div class="hint-text ${ps.hintShown ? 'visible' : ''}" id="hint-${idx}">💡 ${puzzle.hint}</div>
-      </div>
-
       <div class="answer-area">
         <div class="answer-input-wrap">
           <label class="answer-label">ENTER ANSWER ${puzzle.unit ? `[${puzzle.unit}]` : ''}</label>
@@ -1132,16 +1127,6 @@ function renderDots() {
 // ============================================================
 // PUZZLE LOGIC
 // ============================================================
-function toggleHint(idx) {
-  const ps = state.puzzleStates[idx];
-  if (!ps.hintShown) {
-    ps.hintShown = true;
-    state.hintsUsed++;
-  } else {
-    ps.hintShown = false;
-  }
-  renderPuzzle();
-}
 
 function saveInput(idx, val) {
   state.puzzleStates[idx].inputValue = val;
